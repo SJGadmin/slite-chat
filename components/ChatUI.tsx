@@ -20,22 +20,28 @@ export default function ChatUI() {
 
   const scrollToEnd = () =>
     scroller.current?.scrollTo({ top: 9e6, behavior: "smooth" });
-
   useEffect(scrollToEnd, [messages.length, loading]);
 
-  // --- Typewriter effect for assistant replies ---
-  async function typeIn(full: string, startDelayMs = 150) {
-    // add a placeholder assistant message we will mutate
-    const idx = messages.length; // index it'll be after push
-    setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+  // Typewriter that appends a NEW assistant message and streams into it
+  async function typeIn(full: string, startDelayMs = 120) {
+    let placeholderIndex = -1;
 
+    // Append an empty assistant message and capture its index *safely*
+    setMessages(prev => {
+      placeholderIndex = prev.length;
+      return [...prev, { role: "assistant", content: "" }];
+    });
+
+    // small pause to feel responsive
     await new Promise(r => setTimeout(r, startDelayMs));
 
     const step = 3; // chars per tick
     for (let i = 0; i <= full.length; i += step) {
       const slice = full.slice(0, i);
       setMessages(prev =>
-        prev.map((m, j) => (j === idx ? { ...m, content: slice } : m))
+        prev.map((m, j) =>
+          j === placeholderIndex ? { ...m, content: slice } : m
+        )
       );
       await new Promise(r => setTimeout(r, 16)); // ~60fps
     }
@@ -46,6 +52,7 @@ export default function ChatUI() {
     if (!q || loading) return;
 
     setLoading(true);
+    // append the user's message first
     setMessages(prev => [...prev, { role: "user", content: q }]);
     setInput("");
 
@@ -55,7 +62,6 @@ export default function ChatUI() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: q })
       });
-
       const data = await res.json();
       const answer: string =
         (data && typeof data.answer === "string" && data.answer) ||
@@ -83,7 +89,7 @@ export default function ChatUI() {
       {/* composer */}
       <div className="composer">
         <textarea
-          placeholder="Ask about an SOP (e.g., “How do I work a Google LSA Message lead?”)"
+          placeholder='Ask about an SOP (e.g., "How do I work a Google LSA Message lead?")'
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => {
