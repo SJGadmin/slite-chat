@@ -1,96 +1,84 @@
 "use client";
+import React, { useState } from "react";
 
-import { useEffect, useRef, useState } from "react";
-
-type Msg = { role: "user" | "assistant"; content: string };
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
 
 export default function ChatUI() {
-  const [messages, setMessages] = useState<Msg[]>([
-    {
-      role: "assistant",
-      content:
-        "Hey there! Ask about any SOP and I’ll answer strictly from our docs — or I’ll ask a quick clarifying question. Let’s get this deal… sealed. 🏡"
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const scroller = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    scroller.current?.scrollTo({ top: 9e6, behavior: "smooth" });
-  }, [messages.length, loading]);
-
-  async function send() {
-    const q = input.trim();
-    if (!q || loading) return;
-
-    // show user message
-    setMessages(prev => [...prev, { role: "user", content: q }]);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: q })
-      });
-
-      const data = await res.json();
-      const answer =
-        typeof data?.answer === "string"
-          ? data.answer
-          : "⚠️ Sorry, I couldn’t get an answer.";
-
-      setMessages(prev => [...prev, { role: "assistant", content: answer }]);
-    } catch {
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: "⚠️ Error fetching answer. Please try again." }
-      ]);
-    } finally {
-      setLoading(false);
-    }
+  // Helper to render bold text (e.g. **bold**)
+  function renderWithBold(text: string) {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
   }
 
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+
+    const newMessage: Message = { role: "user", content: input };
+    setMessages((prev) => [...prev, newMessage]);
+    setInput("");
+
+    // Replace with actual API call later
+    const reply: Message = {
+      role: "assistant",
+      content: `You said: **${newMessage.content}**`,
+    };
+
+    setMessages((prev) => [...prev, reply]);
+  };
+
   return (
-    <div className="chat-shell">
-      {/* scrollable transcript */}
-      <div className="transcript" ref={scroller}>
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Chat Messages */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-4">
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`bubble ${m.role === "user" ? "user" : "assistant"}`}
+            className={`flex ${
+              m.role === "user" ? "justify-end" : "justify-start"
+            }`}
           >
-            {m.content}
+            <div
+              className={`px-4 py-2 rounded-2xl max-w-xs shadow ${
+                m.role === "user"
+                  ? "bg-blue-500 text-white rounded-br-none"
+                  : "bg-white text-gray-800 rounded-bl-none"
+              }`}
+            >
+              {renderWithBold(m.content)}
+            </div>
           </div>
         ))}
-
-        {loading && (
-          <div className="typing">
-            <span className="dot" />
-            <span className="dot" />
-            <span className="dot" />
-          </div>
-        )}
       </div>
 
-      {/* bottom composer */}
-      <div className="composer">
-        <textarea
-          placeholder='Ask about an SOP (e.g., "How do I work a Google LSA Message lead?")'
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
-        <button className="btn" onClick={send} disabled={loading || !input.trim()}>
-          {loading ? "…" : "Send"}
-        </button>
+      {/* Input Box */}
+      <div className="p-4 border-t bg-white">
+        <div className="flex space-x-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            placeholder="Type your message..."
+            className="flex-1 px-4 py-2 border rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={sendMessage}
+            className="px-4 py-2 bg-blue-500 text-white rounded-2xl shadow hover:bg-blue-600"
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
