@@ -1,76 +1,90 @@
 "use client";
 
-import React, { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-interface Message {
-  sender: "user" | "assistant";
-  text: string;
-}
+type Msg = { role: "user" | "assistant"; content: string };
 
-const ChatUI: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function ChatUI() {
+  const [messages, setMessages] = useState<Msg[]>([
+    {
+      role: "assistant",
+      content:
+        "Hey there! Ask about any SOP and I’ll answer strictly from our docs — or I’ll ask a quick clarifying question. Let’s get this deal… sealed. 🏡",
+    },
+  ]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const scroller = useRef<HTMLDivElement>(null);
 
-  const handleSend = () => {
-    if (input.trim() === "") return;
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 9e6, behavior: "smooth" });
+  }, [messages.length, loading]);
 
-    const newMessage: Message = { sender: "user", text: input };
-    setMessages((prev) => [...prev, newMessage]);
+  async function send() {
+    const q = input.trim();
+    if (!q || loading) return;
+
+    setMessages((prev) => [...prev, { role: "user", content: q }]);
     setInput("");
+    setLoading(true);
 
-    // placeholder bot reply
-    setTimeout(() => {
-      const botReply: Message = {
-        sender: "assistant",
-        text: "This is a bot reply.",
-      };
-      setMessages((prev) => [...prev, botReply]);
-    }, 1000);
-  };
+    try {
+      // Replace this with your real API call when you’re ready
+      // const res = await fetch("/api/chat", { ... });
+      // const data = await res.json();
+      // const answer = typeof data?.answer === "string" ? data.answer : "No answer";
+      const answer = "Got it! (placeholder reply)";
+
+      setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "⚠️ Error fetching answer." },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto border border-gray-300 rounded-lg shadow-lg">
-      {/* Messages */}
-      <div className="flex-1 p-4 overflow-y-auto bg-white">
-        {messages.map((msg, index) => (
+    <div className="chat-shell">
+      {/* scrollable transcript */}
+      <div className="transcript" ref={scroller}>
+        {messages.map((m, i) => (
           <div
-            key={index}
-            className={`flex mb-2 ${
-              msg.sender === "user" ? "justify-end" : "justify-start"
-            }`}
+            key={i}
+            className={`bubble ${m.role === "user" ? "user" : "assistant"}`}
           >
-            <div
-              className={`px-4 py-2 rounded-lg max-w-xs whitespace-pre-wrap ${
-                msg.sender === "user"
-                  ? "bg-blue-500 text-white rounded-br-none"
-                  : "bg-gray-200 text-gray-800 rounded-bl-none"
-              }`}
-            >
-              {msg.text}
-            </div>
+            {m.content}
           </div>
         ))}
+
+        {loading && (
+          <div className="typing">
+            <span className="dot" />
+            <span className="dot" />
+            <span className="dot" />
+          </div>
+        )}
       </div>
 
-      {/* Composer */}
-      <div className="p-4 border-t border-gray-300 bg-gray-50 flex items-center">
-        <input
-          type="text"
+      {/* bottom composer */}
+      <div className="composer">
+        <textarea
+          placeholder='Ask about an SOP (e.g., "How do I work a Google LSA Message lead?")'
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Type a message..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
         />
-        <button
-          onClick={handleSend}
-          className="ml-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-        >
-          Send
+        <button className="btn" onClick={send} disabled={loading || !input.trim()}>
+          {loading ? "…" : "Send"}
         </button>
       </div>
     </div>
   );
-};
-
-export default ChatUI;
+}
