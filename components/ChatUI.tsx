@@ -29,17 +29,23 @@ export default function ChatUI() {
     setLoading(true);
 
     try {
-      // Replace this with your real API call when you’re ready
-      // const res = await fetch("/api/chat", { ... });
-      // const data = await res.json();
-      // const answer = typeof data?.answer === "string" ? data.answer : "No answer";
-      const answer = "Got it! (placeholder reply)";
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: q }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      const answer =
+        typeof data?.answer === "string"
+          ? data.answer
+          : "I couldn’t find that directly in our SOPs. Can you specify the exact topic or lead source?";
 
       setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "⚠️ Error fetching answer." },
+        { role: "assistant", content: "⚠️ Error calling /api/chat. Please try again." },
       ]);
     } finally {
       setLoading(false);
@@ -48,13 +54,10 @@ export default function ChatUI() {
 
   return (
     <div className="chat-shell">
-      {/* scrollable transcript */}
+      {/* Transcript */}
       <div className="transcript" ref={scroller}>
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`bubble ${m.role === "user" ? "user" : "assistant"}`}
-          >
+          <div key={i} className={`bubble ${m.role === "user" ? "user" : "assistant"}`}>
             {m.content}
           </div>
         ))}
@@ -68,7 +71,7 @@ export default function ChatUI() {
         )}
       </div>
 
-      {/* bottom composer */}
+      {/* Composer */}
       <div className="composer">
         <textarea
           placeholder='Ask about an SOP (e.g., "How do I work a Google LSA Message lead?")'
